@@ -8,7 +8,8 @@ import pandas as pd
 from scipy import stats
 from scipy.signal import find_peaks
 from statsmodels.tsa.stattools import adfuller, kpss
-from statsmodels.tsa.structural import breakvar
+#from statsmodels.tsa.structural import breakvar
+#from statsmodels.tsa.stattools import breakvar
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -159,6 +160,23 @@ class AdvancedFeatureEngineer:
         features['timestamp'] = pd.Timestamp.now()
         
         return features
+    def calculate_hurst(self, series):
+        """Calculate Hurst Exponent (trend vs mean-reversion)"""
+        try:
+            ts = np.array(series.dropna())
+            if len(ts) < 20:
+                return 0.5  # neutral
+            
+            lags = range(2, 20)
+            tau = [np.std(np.subtract(ts[lag:], ts[:-lag])) for lag in lags]
+            
+            poly = np.polyfit(np.log(lags), np.log(tau), 1)
+            hurst = poly[0] * 2.0
+            
+            return float(np.clip(hurst, 0, 1))
+    
+        except:
+            return 0.5
 
 # Advanced Bayesian Change Point Detection
 class BayesianChangePointDetector:

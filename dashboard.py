@@ -1835,6 +1835,7 @@ st.markdown("""
         border-left: 5px solid #00ff00;
         margin: 15px 0;
         box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        color: white;
     }
     .advice-box-caution {
         background: linear-gradient(135deg, #2a2a0a 0%, #3a3a1a 100%);
@@ -1843,6 +1844,7 @@ st.markdown("""
         border-left: 5px solid #ffaa00;
         margin: 15px 0;
         box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        color: white;
     }
     .advice-box-avoid {
         background: linear-gradient(135deg, #2a0a0a 0%, #3a1a1a 100%);
@@ -1851,6 +1853,7 @@ st.markdown("""
         border-left: 5px solid #ff4444;
         margin: 15px 0;
         box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        color: white;
     }
     .info-box {
         background-color: #0a1a2a;
@@ -1858,6 +1861,7 @@ st.markdown("""
         border-radius: 8px;
         margin: 10px 0;
         border: 1px solid #00aaff;
+        color: white;
     }
     .alert-critical {
         background-color: #4a0a0a;
@@ -1865,6 +1869,7 @@ st.markdown("""
         border-radius: 8px;
         border-left: 4px solid #ff0000;
         margin: 5px 0;
+        color: white;
     }
     .alert-high {
         background-color: #3a2a0a;
@@ -1872,6 +1877,7 @@ st.markdown("""
         border-radius: 8px;
         border-left: 4px solid #ff6600;
         margin: 5px 0;
+        color: white;
     }
     .alert-medium {
         background-color: #2a3a0a;
@@ -1879,6 +1885,7 @@ st.markdown("""
         border-radius: 8px;
         border-left: 4px solid #ffaa00;
         margin: 5px 0;
+        color: white;
     }
     .metric-card {
         background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
@@ -1886,6 +1893,7 @@ st.markdown("""
         border-radius: 10px;
         text-align: center;
         border-bottom: 3px solid #00aaff;
+        color: white;
     }
     .question-box {
         background-color: #1a2a3a;
@@ -1893,6 +1901,7 @@ st.markdown("""
         border-radius: 10px;
         margin: 15px 0;
         border: 1px solid #ffaa00;
+        color: white;
     }
     .recommendation-card {
         background-color: #0a1a2a;
@@ -1900,6 +1909,7 @@ st.markdown("""
         border-radius: 8px;
         margin: 10px 0;
         border-left: 4px solid #00ff00;
+        color: white;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -2250,344 +2260,383 @@ def main():
     # ============================================================================
     
     with tab2:
-        st.header("Risk Analytics")
-        st.caption("Understanding your potential losses - explained in plain English")
+        @st.fragment
+        def render_tab2():
+            st.header("Risk Analytics")
+            st.caption("Understanding your potential losses - explained in plain English")
         
-        selected_risk = st.selectbox("Select Security", selected_tickers, key="risk_select")
+            selected_risk = st.selectbox("Select Security", selected_tickers, key="risk_select")
         
-        if selected_risk in current_data:
-            data = current_data[selected_risk]
+            if selected_risk in current_data:
+                data = current_data[selected_risk]
             
-            # CRITICAL FIX: Convert intraday returns to daily for meaningful risk metrics
-            if selected_interval in ['1m', '5m', '15m', '30m', '1h']:
-                # Resample to daily returns using proper compounding
-                daily_returns = data['returns'].resample('D').apply(lambda x: (1 + x).prod() - 1).dropna()
-                if len(daily_returns) > 10:
-                    returns = daily_returns
-                    st.info("Note: Using daily returns for risk calculation (more meaningful than minute-level)")
+                # CRITICAL FIX: Convert intraday returns to daily for meaningful risk metrics
+                if selected_interval in ['1m', '5m', '15m', '30m', '1h']:
+                    # Resample to daily returns using proper compounding
+                    daily_returns = data['returns'].resample('D').apply(lambda x: (1 + x).prod() - 1).dropna()
+                    if len(daily_returns) > 10:
+                        returns = daily_returns
+                        st.info("Note: Using daily returns for risk calculation (more meaningful than minute-level)")
+                    else:
+                        returns = data['returns'].dropna()
+                        st.warning("Limited daily data available. Using available returns for calculation.")
                 else:
                     returns = data['returns'].dropna()
-                    st.warning("Limited daily data available. Using available returns for calculation.")
-            else:
-                returns = data['returns'].dropna()
             
-            if len(returns) > 5:
-                # Calculate risk metrics with proper handling - CONVERT TO PERCENTAGE FOR DISPLAY
-                var_95 = np.percentile(returns, 5) if len(returns) > 0 else -0.01
-                var_99 = np.percentile(returns, 1) if len(returns) > 0 else -0.02
-                cvar_95 = returns[returns <= var_95].mean() if len(returns[returns <= var_95]) > 0 else var_95
-                volatility = returns.std() * np.sqrt(252) if returns.std() > 0 else 0.15
-                sharpe = (returns.mean() * 252) / (returns.std() * np.sqrt(252) + 0.001) if returns.std() > 0 else 0
+                if len(returns) > 5:
+                    # Calculate risk metrics with proper handling - CONVERT TO PERCENTAGE FOR DISPLAY
+                    var_95 = np.percentile(returns, 5) if len(returns) > 0 else -0.01
+                    var_99 = np.percentile(returns, 1) if len(returns) > 0 else -0.02
+                    cvar_95 = returns[returns <= var_95].mean() if len(returns[returns <= var_95]) > 0 else var_95
+                    volatility = returns.std() * np.sqrt(252) if returns.std() > 0 else 0.15
+                    sharpe = (returns.mean() * 252) / (returns.std() * np.sqrt(252) + 0.001) if returns.std() > 0 else 0
                 
-                # Calculate drawdown
-                cum_returns = (1 + returns).cumprod()
-                rolling_max = cum_returns.expanding().max()
-                drawdown = (cum_returns - rolling_max) / rolling_max
-                max_dd = drawdown.min() if len(drawdown) > 0 else 0
+                    # Calculate drawdown
+                    cum_returns = (1 + returns).cumprod()
+                    rolling_max = cum_returns.expanding().max()
+                    drawdown = (cum_returns - rolling_max) / rolling_max
+                    max_dd = drawdown.min() if len(drawdown) > 0 else 0
                 
-                # GARCH forecast with error handling
-                try:
-                    garch_vol = get_garch_forecast(returns, selected_risk)
-                    if garch_vol is None or garch_vol == 0:
+                    # GARCH forecast with error handling
+                    try:
+                        garch_vol = get_garch_forecast(returns, selected_risk)
+                        if garch_vol is None or garch_vol == 0:
+                            garch_vol = volatility
+                    except:
                         garch_vol = volatility
-                except:
-                    garch_vol = volatility
                 
-                # CONVERT TO PERCENTAGE FOR DISPLAY (multiply by 100)
-                var_95_pct = var_95 * 100
-                var_99_pct = var_99 * 100
-                cvar_95_pct = cvar_95 * 100
-                volatility_pct = volatility * 100
-                garch_vol_pct = garch_vol * 100
-                max_dd_pct = max_dd * 100
+                    # CONVERT TO PERCENTAGE FOR DISPLAY (multiply by 100)
+                    var_95_pct = var_95 * 100
+                    var_99_pct = var_99 * 100
+                    cvar_95_pct = cvar_95 * 100
+                    volatility_pct = volatility * 100
+                    garch_vol_pct = garch_vol * 100
+                    max_dd_pct = max_dd * 100
                 
-                # Ensure values are reasonable for display
-                if abs(var_95_pct) < 0.1:
-                    var_95_pct = -0.5  # Default to -0.5% if too small
-                if abs(var_99_pct) < 0.1:
-                    var_99_pct = -1.0  # Default to -1.0% if too small
-                if abs(cvar_95_pct) < 0.1:
-                    cvar_95_pct = -0.8  # Default to -0.8% if too small
+                    # Ensure values are reasonable for display
+                    if abs(var_95_pct) < 0.1:
+                        var_95_pct = -0.5  # Default to -0.5% if too small
+                    if abs(var_99_pct) < 0.1:
+                        var_99_pct = -1.0  # Default to -1.0% if too small
+                    if abs(cvar_95_pct) < 0.1:
+                        cvar_95_pct = -0.8  # Default to -0.8% if too small
                 
-                # Risk level indicator based on percentage
-                if abs(var_95_pct) < 1.5:
-                    risk_level = "LOW RISK"
-                    risk_color = "green"
-                    risk_advice = "This stock is relatively safe. Good for conservative investors."
-                elif abs(var_95_pct) < 3.0:
-                    risk_level = "MODERATE RISK"
-                    risk_color = "orange"
-                    risk_advice = "Normal stock market risk. Suitable for most investors."
-                else:
-                    risk_level = "HIGH RISK"
-                    risk_color = "red"
-                    risk_advice = "Only for aggressive investors. Be prepared for big swings."
+                    # Risk level indicator based on percentage
+                    if abs(var_95_pct) < 1.5:
+                        risk_level = "LOW RISK"
+                        risk_color = "green"
+                        risk_advice = "This stock is relatively safe. Good for conservative investors."
+                    elif abs(var_95_pct) < 3.0:
+                        risk_level = "MODERATE RISK"
+                        risk_color = "orange"
+                        risk_advice = "Normal stock market risk. Suitable for most investors."
+                    else:
+                        risk_level = "HIGH RISK"
+                        risk_color = "red"
+                        risk_advice = "Only for aggressive investors. Be prepared for big swings."
                 
-                st.markdown(f"""
-                <div class='info-box'>
-                    <h3 style='color:{risk_color}; margin:0;'>{risk_level}</h3>
-                    <p>{risk_advice}</p>
-                </div>
-                """, unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div class='info-box'>
+                        <h3 style='color:{risk_color}; margin:0;'>{risk_level}</h3>
+                        <p>{risk_advice}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
                 
-                col1, col2 = st.columns(2)
+                    col1, col2 = st.columns(2)
                 
-                with col1:
-                    st.markdown("**Value at Risk (VaR)**")
-                    st.metric("95% Confidence", f"{var_95_pct:.2f}%")
-                    st.caption(f"Meaning: On a bad day (1 in 20), you might lose {abs(var_95_pct):.1f}%")
+                    with col1:
+                        st.markdown("**Value at Risk (VaR)**")
+                        st.metric("95% Confidence", f"{var_95_pct:.2f}%")
+                        st.caption(f"Meaning: On a bad day (1 in 20), you might lose {abs(var_95_pct):.1f}%")
                     
-                    st.metric("99% Confidence", f"{var_99_pct:.2f}%")
-                    st.caption(f"Meaning: In extreme conditions (1 in 100), loss could reach {abs(var_99_pct):.1f}%")
+                        st.metric("99% Confidence", f"{var_99_pct:.2f}%")
+                        st.caption(f"Meaning: In extreme conditions (1 in 100), loss could reach {abs(var_99_pct):.1f}%")
                     
+                        st.markdown("---")
+                        st.markdown("**Conditional VaR (CVaR)**")
+                        st.metric("Tail Risk", f"{cvar_95_pct:.2f}%")
+                        st.caption(f"Meaning: When losses happen, average loss is {abs(cvar_95_pct):.1f}%")
+                
+                    with col2:
+                        st.markdown("**Volatility Analysis**")
+                        st.metric("Historical Volatility", f"{volatility_pct:.1f}%")
+                        if volatility_pct < 20:
+                            st.caption("Low volatility - Prices are relatively stable")
+                        elif volatility_pct < 35:
+                            st.caption("Moderate volatility - Normal stock behavior")
+                        else:
+                            st.caption("High volatility - Prices swing significantly")
+                    
+                        st.metric("GARCH Forecast", f"{garch_vol_pct:.1f}%")
+                        if garch_vol_pct > volatility_pct * 1.1:
+                            st.warning("GARCH predicts INCREASING volatility - Consider smaller positions")
+                        elif garch_vol_pct < volatility_pct * 0.9:
+                            st.success("GARCH predicts DECREASING volatility - Good time for entry")
+                        else:
+                            st.info("GARCH predicts STABLE volatility")
+                    
+                        st.markdown("---")
+                        st.markdown("**Risk Ratios**")
+                        st.metric("Sharpe Ratio", f"{sharpe:.2f}")
+                        if sharpe > 1:
+                            st.caption("Excellent - Good returns for risk taken")
+                        elif sharpe > 0.5:
+                            st.caption("Good - Acceptable risk-reward balance")
+                        else:
+                            st.caption("Poor - Returns don't justify risk")
+                    
+                        st.metric("Max Drawdown", f"{max_dd_pct:.2f}%")
+                        if abs(max_dd_pct) > 0.1:
+                            st.caption(f"Worst historical drop: {abs(max_dd_pct):.1f}%")
+                        else:
+                            st.caption("Limited historical data available")
+                
+                    # Add explanation about the data used
+                    if selected_interval in ['1m', '5m', '15m', '30m', '1h']:
+                        st.info("💡 **Note:** You are viewing minute-level data. Risk metrics have been converted to daily equivalents for better interpretation.")
+                
+                    # Drawdown chart
+                    if len(drawdown) > 5:
+                        st.markdown("### Historical Drawdown Chart")
+                        st.caption("Shows every drop this stock has taken from its highest point")
+                        fig = go.Figure()
+                        fig.add_trace(go.Scatter(x=drawdown.index, y=drawdown * 100, fill='tozeroy', line=dict(color='red')))
+                        fig.update_layout(title="Drawdown History (Losses from Peak)", yaxis_title="Loss (%)", template="plotly_dark", height=350)
+                        st.plotly_chart(fig, use_container_width=True)
+                    
+                        if abs(max_dd_pct) > 25:
+                            st.warning("⚠️ This stock has seen significant drops before. Make sure you can handle this level of loss.")
+                        elif abs(max_dd_pct) > 15:
+                            st.info("📊 This stock's historical declines are within normal ranges for stocks.")
+                        else:
+                            st.success("✅ This stock has relatively small historical drawdowns.")
+                    else:
+                        st.info("Not enough historical data to display drawdown chart. Select a longer time period for better analysis.")
+                
+                    # Actionable summary
                     st.markdown("---")
-                    st.markdown("**Conditional VaR (CVaR)**")
-                    st.metric("Tail Risk", f"{cvar_95_pct:.2f}%")
-                    st.caption(f"Meaning: When losses happen, average loss is {abs(cvar_95_pct):.1f}%")
+                    st.markdown("### 📋 What You Should Do")
                 
-                with col2:
-                    st.markdown("**Volatility Analysis**")
-                    st.metric("Historical Volatility", f"{volatility_pct:.1f}%")
-                    if volatility_pct < 20:
-                        st.caption("Low volatility - Prices are relatively stable")
-                    elif volatility_pct < 35:
-                        st.caption("Moderate volatility - Normal stock behavior")
+                    if abs(var_95_pct) < 1.5:
+                        st.markdown("✅ **Conservative Approach:** This stock fits a low-risk portfolio. Normal position sizes are acceptable.")
+                        st.markdown("📊 **Suggested Stop-Loss:** 10-12% below entry price")
+                    elif abs(var_95_pct) < 3.0:
+                        st.markdown("📊 **Balanced Approach:** This stock fits a moderate-risk portfolio. Use normal position sizes.")
+                        st.markdown("📊 **Suggested Stop-Loss:** 8-10% below entry price")
                     else:
-                        st.caption("High volatility - Prices swing significantly")
+                        st.markdown("⚠️ **Aggressive Approach Only:** This stock is high-risk. Use smaller positions (50% of normal).")
+                        st.markdown("📊 **Suggested Stop-Loss:** 5-8% below entry price")
                     
-                    st.metric("GARCH Forecast", f"{garch_vol_pct:.1f}%")
-                    if garch_vol_pct > volatility_pct * 1.1:
-                        st.warning("GARCH predicts INCREASING volatility - Consider smaller positions")
-                    elif garch_vol_pct < volatility_pct * 0.9:
-                        st.success("GARCH predicts DECREASING volatility - Good time for entry")
-                    else:
-                        st.info("GARCH predicts STABLE volatility")
-                    
-                    st.markdown("---")
-                    st.markdown("**Risk Ratios**")
-                    st.metric("Sharpe Ratio", f"{sharpe:.2f}")
-                    if sharpe > 1:
-                        st.caption("Excellent - Good returns for risk taken")
-                    elif sharpe > 0.5:
-                        st.caption("Good - Acceptable risk-reward balance")
-                    else:
-                        st.caption("Poor - Returns don't justify risk")
-                    
-                    st.metric("Max Drawdown", f"{max_dd_pct:.2f}%")
-                    if abs(max_dd_pct) > 0.1:
-                        st.caption(f"Worst historical drop: {abs(max_dd_pct):.1f}%")
-                    else:
-                        st.caption("Limited historical data available")
-                
-                # Add explanation about the data used
-                if selected_interval in ['1m', '5m', '15m', '30m', '1h']:
-                    st.info("💡 **Note:** You are viewing minute-level data. Risk metrics have been converted to daily equivalents for better interpretation.")
-                
-                # Drawdown chart
-                if len(drawdown) > 5:
-                    st.markdown("### Historical Drawdown Chart")
-                    st.caption("Shows every drop this stock has taken from its highest point")
-                    fig = go.Figure()
-                    fig.add_trace(go.Scatter(x=drawdown.index, y=drawdown * 100, fill='tozeroy', line=dict(color='red')))
-                    fig.update_layout(title="Drawdown History (Losses from Peak)", yaxis_title="Loss (%)", template="plotly_dark", height=350)
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                    if abs(max_dd_pct) > 25:
-                        st.warning("⚠️ This stock has seen significant drops before. Make sure you can handle this level of loss.")
-                    elif abs(max_dd_pct) > 15:
-                        st.info("📊 This stock's historical declines are within normal ranges for stocks.")
-                    else:
-                        st.success("✅ This stock has relatively small historical drawdowns.")
                 else:
-                    st.info("Not enough historical data to display drawdown chart. Select a longer time period for better analysis.")
-                
-                # Actionable summary
-                st.markdown("---")
-                st.markdown("### 📋 What You Should Do")
-                
-                if abs(var_95_pct) < 1.5:
-                    st.markdown("✅ **Conservative Approach:** This stock fits a low-risk portfolio. Normal position sizes are acceptable.")
-                    st.markdown("📊 **Suggested Stop-Loss:** 10-12% below entry price")
-                elif abs(var_95_pct) < 3.0:
-                    st.markdown("📊 **Balanced Approach:** This stock fits a moderate-risk portfolio. Use normal position sizes.")
-                    st.markdown("📊 **Suggested Stop-Loss:** 8-10% below entry price")
-                else:
-                    st.markdown("⚠️ **Aggressive Approach Only:** This stock is high-risk. Use smaller positions (50% of normal).")
-                    st.markdown("📊 **Suggested Stop-Loss:** 5-8% below entry price")
-                    
-            else:
-                st.warning("Insufficient data for risk analysis. Please select a longer time period (1 Month or more) for meaningful risk metrics.")
+                    st.warning("Insufficient data for risk analysis. Please select a longer time period (1 Month or more) for meaningful risk metrics.")
     
+        render_tab2()
+
     # ============================================================================
     # TAB 3: PORTFOLIO BUILDER
     # ============================================================================
     
     with tab3:
-        st.header("Portfolio Builder")
+        @st.fragment
+        def render_tab3():
+            st.header("Portfolio Builder")
         
-        st.markdown('<div class="question-box">', unsafe_allow_html=True)
-        st.subheader("Your Investment Profile")
+            st.markdown('<div class="question-box">', unsafe_allow_html=True)
+            st.subheader("Your Investment Profile")
         
-        col1, col2 = st.columns(2)
+            col1, col2 = st.columns(2)
         
-        with col1:
-            investment_goal = st.selectbox(
-                "Primary Goal",
-                ["Capital Preservation (Low Risk)", "Balanced Growth (Moderate Risk)", "Maximum Returns (High Risk)"],
-                key="goal_select"
-            )
-            time_horizon = st.select_slider(
-                "Time Horizon",
-                options=["Short-term (< 1 year)", "Medium-term (1-3 years)", "Long-term (3+ years)"],
-                value="Medium-term (1-3 years)",
-                key="horizon_slider"
-            )
+            with col1:
+                investment_goal = st.selectbox(
+                    "Primary Goal",
+                    ["Capital Preservation (Low Risk)", "Balanced Growth (Moderate Risk)", "Maximum Returns (High Risk)"],
+                    key="goal_select"
+                )
+                time_horizon = st.selectbox(
+                    "Time Horizon",
+                    options=["Short-term (< 1 year)", "Medium-term (1-3 years)", "Long-term (3+ years)"],
+                    index=1,
+                    key="horizon_slider"
+                )
         
-        with col2:
-            experience = st.selectbox(
-                "Experience Level",
-                ["Beginner", "Intermediate", "Advanced"],
-                key="exp_select"
-            )
-            total_capital = st.number_input("Total Capital (USD)", min_value=1000, max_value=100000, value=10000, step=1000, key="capital_input")
+            with col2:
+                experience = st.selectbox(
+                    "Experience Level",
+                    ["Beginner", "Intermediate", "Advanced"],
+                    key="exp_select"
+                )
+                total_capital = st.number_input("Total Capital (USD)", min_value=1000, max_value=100000, value=10000, step=1000, key="capital_input")
         
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         
-        if "Capital Preservation" in investment_goal:
-            risk_profile = "Conservative"
-        elif "Balanced Growth" in investment_goal:
-            risk_profile = "Moderate"
-        else:
-            risk_profile = "Aggressive"
+            if "Capital Preservation" in investment_goal:
+                risk_profile = "Conservative"
+            elif "Balanced Growth" in investment_goal:
+                risk_profile = "Moderate"
+            else:
+                risk_profile = "Aggressive"
         
-        st.info(f"**Your Profile:** {risk_profile} Investor")
+            st.info(f"**Your Profile:** {risk_profile} Investor")
         
-        stock_scores = []
-        for ticker in selected_tickers:
-            if ticker in current_data:
-                data = current_data[ticker]
-                returns = data['returns'].dropna()
-                if len(returns) > 10:
-                    hurst = calculate_hurst_with_engineer(data['close'])
-                    volatility = returns.std() * np.sqrt(252)
-                    sharpe = (returns.mean() * 252) / (returns.std() * np.sqrt(252) + 0.001)
-                    momentum = returns.tail(5).mean() * 252
+            stock_scores = []
+            for ticker in selected_tickers:
+                if ticker in current_data:
+                    data = current_data[ticker]
+                    returns = data['returns'].dropna()
+                    if len(returns) > 10:
+                        hurst = calculate_hurst_with_engineer(data['close'])
+                        volatility = returns.std() * np.sqrt(252)
+                        sharpe = (returns.mean() * 252) / (returns.std() * np.sqrt(252) + 0.001)
+                        momentum = returns.tail(5).mean() * 252
                     
-                    if risk_profile == "Conservative":
-                        score = (1 / (volatility + 0.1)) * 3 + (sharpe * 0.5)
-                    elif risk_profile == "Aggressive":
-                        score = (hurst * 2.5) + (sharpe * 1.5) + (momentum * 1.5)
-                    else:
-                        score = (sharpe * 1.5) + (1 / (volatility + 0.1)) * 1.5 + (hurst * 0.8)
+                        # Base factors
+                        vol_factor = 1 / (volatility + 0.1)
                     
-                    stock_scores.append({
-                        'ticker': ticker, 'score': score, 'volatility': volatility,
-                        'sharpe': sharpe, 'hurst': hurst, 'momentum': momentum
+                        # Base weights based on risk profile
+                        if risk_profile == "Conservative":
+                            w_vol, w_sharpe, w_hurst, w_mom = 3.0, 0.5, 0.2, 0.0
+                        elif risk_profile == "Aggressive":
+                            w_vol, w_sharpe, w_hurst, w_mom = 0.5, 1.5, 2.5, 1.5
+                        else: # Moderate
+                            w_vol, w_sharpe, w_hurst, w_mom = 1.5, 1.5, 0.8, 0.5
+                    
+                        # Adjust weights based on time horizon
+                        if "Short-term" in time_horizon:
+                            w_mom += 1.0
+                            w_vol += 1.0 # Need stability in short term
+                            w_hurst -= 0.5 # Long trend doesn't matter as much
+                        elif "Long-term" in time_horizon:
+                            w_hurst += 1.0
+                            w_vol -= 0.5 # Volatility is okay long term
+                            w_mom -= 0.5 # Short term momentum matters less
+                    
+                        # Adjust weights based on experience
+                        if experience == "Beginner":
+                            w_vol += 1.0 # Steer to safer assets
+                            w_sharpe += 0.5 # Beginners need more consistent returns
+                        elif experience == "Advanced":
+                            w_mom += 0.5
+                            w_hurst += 0.5
+                    
+                        # Ensure positive weights
+                        w_vol, w_hurst, w_mom = max(0.0, w_vol), max(0.0, w_hurst), max(0.0, w_mom)
+                    
+                        score = (vol_factor * w_vol) + (sharpe * w_sharpe) + (hurst * w_hurst) + (momentum * w_mom)
+                    
+                        stock_scores.append({
+                            'ticker': ticker, 'score': score, 'volatility': volatility,
+                            'sharpe': sharpe, 'hurst': hurst, 'momentum': momentum
+                        })
+        
+            stock_scores.sort(key=lambda x: x['score'], reverse=True)
+        
+            st.subheader("Recommended Portfolio")
+        
+            if len(stock_scores) >= 2:
+                total_score = sum(s['score'] for s in stock_scores)
+                for s in stock_scores:
+                    s['weight'] = max(0.10, min(0.40, s['score'] / total_score))
+                total_weight = sum(s['weight'] for s in stock_scores)
+                for s in stock_scores:
+                    s['weight'] = s['weight'] / total_weight
+            
+                allocation_data = []
+                for s in stock_scores:
+                    amount = total_capital * s['weight']
+                    allocation_data.append({
+                        'Stock': s['ticker'],
+                        'Allocation %': f"{s['weight']*100:.1f}%",
+                        'Amount': f"${amount:,.0f}",
+                        'Risk': "High" if s['volatility'] > 0.35 else "Moderate" if s['volatility'] > 0.20 else "Low"
                     })
-        
-        stock_scores.sort(key=lambda x: x['score'], reverse=True)
-        
-        st.subheader("Recommended Portfolio")
-        
-        if len(stock_scores) >= 2:
-            total_score = sum(s['score'] for s in stock_scores)
-            for s in stock_scores:
-                s['weight'] = max(0.10, min(0.40, s['score'] / total_score))
-            total_weight = sum(s['weight'] for s in stock_scores)
-            for s in stock_scores:
-                s['weight'] = s['weight'] / total_weight
             
-            allocation_data = []
-            for s in stock_scores:
-                amount = total_capital * s['weight']
-                allocation_data.append({
-                    'Stock': s['ticker'],
-                    'Allocation %': f"{s['weight']*100:.1f}%",
-                    'Amount': f"${amount:,.0f}",
-                    'Risk': "High" if s['volatility'] > 0.35 else "Moderate" if s['volatility'] > 0.20 else "Low"
-                })
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    st.dataframe(pd.DataFrame(allocation_data), use_container_width=True, hide_index=True)
+                with col2:
+                    fig = px.pie(values=[s['weight'] for s in stock_scores], names=[s['ticker'] for s in stock_scores],
+                               title="Portfolio Allocation", hole=0.3)
+                    st.plotly_chart(fig, use_container_width=True)
             
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                st.dataframe(pd.DataFrame(allocation_data), use_container_width=True, hide_index=True)
-            with col2:
-                fig = px.pie(values=[s['weight'] for s in stock_scores], names=[s['ticker'] for s in stock_scores],
-                           title="Portfolio Allocation", hole=0.3)
-                st.plotly_chart(fig, use_container_width=True)
+                portfolio_vol = np.sqrt(sum((s['weight'] * s['volatility'])**2 for s in stock_scores))
+                portfolio_sharpe = np.mean([s['sharpe'] for s in stock_scores])
             
-            portfolio_vol = np.sqrt(sum((s['weight'] * s['volatility'])**2 for s in stock_scores))
-            portfolio_sharpe = np.mean([s['sharpe'] for s in stock_scores])
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Portfolio Volatility", f"{portfolio_vol:.1%}")
+                with col2:
+                    st.metric("Avg Sharpe Ratio", f"{portfolio_sharpe:.2f}")
+                with col3:
+                    st.metric("Portfolio Risk", "Conservative" if portfolio_vol < 0.20 else "Moderate" if portfolio_vol < 0.35 else "Aggressive")
             
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Portfolio Volatility", f"{portfolio_vol:.1%}")
-            with col2:
-                st.metric("Avg Sharpe Ratio", f"{portfolio_sharpe:.2f}")
-            with col3:
-                st.metric("Portfolio Risk", "Conservative" if portfolio_vol < 0.20 else "Moderate" if portfolio_vol < 0.35 else "Aggressive")
-            
-            st.markdown("""
-            <div class='info-box'>
-                <h4>Action Plan</h4>
-                <ol>
-                    <li>Start with 25% of recommended allocation to test</li>
-                    <li>Set stop-loss orders at 8-10% below entry price</li>
-                    <li>Review and rebalance portfolio monthly</li>
-                </ol>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.warning("Need at least 2 stocks for portfolio recommendations")
+                st.markdown("""
+                <div class='info-box'>
+                    <h4>Action Plan</h4>
+                    <ol>
+                        <li>Start with 25% of recommended allocation to test</li>
+                        <li>Set stop-loss orders at 8-10% below entry price</li>
+                        <li>Review and rebalance portfolio monthly</li>
+                    </ol>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.warning("Need at least 2 stocks for portfolio recommendations")
     
+        render_tab3()
+
     # ============================================================================
     # TAB 4: STATISTICAL TESTS
     # ============================================================================
     
     with tab4:
-        st.header("Statistical Analysis")
+        @st.fragment
+        def render_tab4():
+            st.header("Statistical Analysis")
         
-        selected_stat = st.selectbox("Select Security", selected_tickers, key="stat_select")
+            selected_stat = st.selectbox("Select Security", selected_tickers, key="stat_select")
         
-        if selected_stat in current_data:
-            data = current_data[selected_stat]
-            returns = data['returns'].dropna()
+            if selected_stat in current_data:
+                data = current_data[selected_stat]
+                returns = data['returns'].dropna()
             
-            if len(returns) > 20:
-                hurst = calculate_hurst_with_engineer(data['close'])
-                skewness = skew(returns)
-                kurt = kurtosis(returns)
-                jb_stat, jb_pvalue = jarque_bera(returns)
+                if len(returns) > 20:
+                    hurst = calculate_hurst_with_engineer(data['close'])
+                    skewness = skew(returns)
+                    kurt = kurtosis(returns)
+                    jb_stat, jb_pvalue = jarque_bera(returns)
                 
-                col1, col2 = st.columns(2)
+                    col1, col2 = st.columns(2)
                 
-                with col1:
-                    st.markdown("**Market Behavior**")
-                    if hurst > 0.65:
-                        st.success(f"Hurst: {hurst:.3f} - Trending")
-                    elif hurst < 0.35:
-                        st.warning(f"Hurst: {hurst:.3f} - Mean-Reverting")
-                    else:
-                        st.info(f"Hurst: {hurst:.3f} - Random")
-                    st.metric("Skewness", f"{skewness:.3f}")
-                    st.metric("Kurtosis", f"{kurt:.3f}")
+                    with col1:
+                        st.markdown("**Market Behavior**")
+                        if hurst > 0.65:
+                            st.success(f"Hurst: {hurst:.3f} - Trending")
+                        elif hurst < 0.35:
+                            st.warning(f"Hurst: {hurst:.3f} - Mean-Reverting")
+                        else:
+                            st.info(f"Hurst: {hurst:.3f} - Random")
+                        st.metric("Skewness", f"{skewness:.3f}")
+                        st.metric("Kurtosis", f"{kurt:.3f}")
                 
-                with col2:
-                    st.markdown("**Normality Test**")
-                    st.metric("Jarque-Bera P-Value", f"{jb_pvalue:.4f}")
-                    if jb_pvalue < 0.05:
-                        st.warning("Returns are NOT normally distributed")
-                    else:
-                        st.success("Returns appear normally distributed")
+                    with col2:
+                        st.markdown("**Normality Test**")
+                        st.metric("Jarque-Bera P-Value", f"{jb_pvalue:.4f}")
+                        if jb_pvalue < 0.05:
+                            st.warning("Returns are NOT normally distributed")
+                        else:
+                            st.success("Returns appear normally distributed")
                 
-                fig = go.Figure()
-                fig.add_trace(go.Histogram(x=returns, nbinsx=40, histnorm='probability density',
-                                          name="Actual", marker_color='steelblue', opacity=0.7))
-                x_norm = np.linspace(returns.min(), returns.max(), 100)
-                y_norm = norm.pdf(x_norm, returns.mean(), returns.std())
-                fig.add_trace(go.Scatter(x=x_norm, y=y_norm, name="Normal", line=dict(color='red', width=2, dash='dash')))
-                fig.update_layout(title="Return Distribution", template="plotly_dark", height=450)
-                st.plotly_chart(fig, use_container_width=True)
+                    fig = go.Figure()
+                    fig.add_trace(go.Histogram(x=returns, nbinsx=40, histnorm='probability density',
+                                              name="Actual", marker_color='steelblue', opacity=0.7))
+                    x_norm = np.linspace(returns.min(), returns.max(), 100)
+                    y_norm = norm.pdf(x_norm, returns.mean(), returns.std())
+                    fig.add_trace(go.Scatter(x=x_norm, y=y_norm, name="Normal", line=dict(color='red', width=2, dash='dash')))
+                    fig.update_layout(title="Return Distribution", template="plotly_dark", height=450)
+                    st.plotly_chart(fig, use_container_width=True)
     
+        render_tab4()
+
     # ============================================================================
     # TAB 5: CORRELATION
     # ============================================================================
